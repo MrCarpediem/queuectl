@@ -28,8 +28,8 @@ const migrate = (db) => {
       max_retries INTEGER NOT NULL DEFAULT 3,
       backoff_base INTEGER NOT NULL DEFAULT 2,
       priority INTEGER NOT NULL DEFAULT 0,
-      run_at TEXT DEFAULT NULL,                 -- ISO date to schedule
-      next_run_at TEXT DEFAULT NULL,            -- internal retry schedule
+      run_at TEXT DEFAULT NULL,
+      next_run_at TEXT DEFAULT NULL,
       locked_by TEXT DEFAULT NULL,
       locked_at TEXT DEFAULT NULL,
       created_at TEXT NOT NULL,
@@ -64,16 +64,20 @@ const migrate = (db) => {
     );
   `);
 
-  // defaults
+  // Default config values
   const hasRetries = db.prepare(`SELECT 1 FROM config WHERE key='max_retries'`).get();
   if (!hasRetries) db.prepare(`INSERT INTO config(key,value) VALUES('max_retries','3')`).run();
   const hasBase = db.prepare(`SELECT 1 FROM config WHERE key='backoff_base'`).get();
   if (!hasBase) db.prepare(`INSERT INTO config(key,value) VALUES('backoff_base','2')`).run();
   const hasTimeout = db.prepare(`SELECT 1 FROM config WHERE key='job_timeout_ms'`).get();
-  if (!hasTimeout) db.prepare(`INSERT INTO config(key,value) VALUES('job_timeout_ms','60000')`).run(); // 60s default
+  if (!hasTimeout) db.prepare(`INSERT INTO config(key,value) VALUES('job_timeout_ms','60000')`).run();
 };
 
+// Handle `npm run migrate`
 if (process.argv[2] === 'migrate') {
   getDB();
   console.log(`[${nowISO()}] migration complete at ${DB_PATH}`);
 }
+
+// ✅ Export both: getDB() and default instance
+export default getDB();   // <— This line provides default export for imports like `import db from './db.js'`
