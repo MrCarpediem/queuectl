@@ -160,3 +160,12 @@ Then visit http://localhost:3000 in your browser.
 ---
 
 ## License
+MIT
+
+## External Demo
+
+A demo file / additional resources are available here:
+
+https://drive.google.com/file/d/1xuShsG0At7ansaM6GPSgSfYaC4Tkt0I5/view?usp=sharing
+
+Add this to your browser to download or view the demo assets used in the project.
