@@ -1,9 +1,10 @@
+// src/web.js
 import express from "express";
-import { getDB } from "./db.js";
+import db from "./db.js"; // ✅ import the existing db instance
 
 const app = express();
-const db = getDB();
 
+// Serve Dashboard
 app.get("/", (req, res) => {
   res.send(`
   <html>
@@ -12,10 +13,10 @@ app.get("/", (req, res) => {
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
-  <body class="bg-gray-900 text-gray-100 min-h-screen font-sans transition-all duration-500" id="body">
+  <body class="bg-gray-900 text-gray-100 min-h-screen font-sans" id="body">
     <div class="p-6 text-center">
       <div class="flex justify-between items-center max-w-5xl mx-auto">
-        <h1 class="text-4xl font-bold mb-2 text-blue-400"> QueueCTL Dashboard</h1>
+        <h1 class="text-4xl font-bold mb-2 text-blue-400">QueueCTL Dashboard</h1>
         <button id="themeToggle" class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-sm font-semibold">
           🌙 Dark Mode
         </button>
@@ -23,11 +24,11 @@ app.get("/", (req, res) => {
 
       <p class="text-gray-400 mb-6">Monitor background jobs, DLQ, and system performance</p>
 
-      <div class="grid grid-cols-3 gap-6 max-w-4xl mx-auto mb-10" id="cards"></div>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl mx-auto mb-10" id="cards"></div>
 
-      <div class="max-w-3xl mx-auto bg-gray-800 rounded-xl p-4 shadow-xl transition-all duration-500" id="chartBox">
+      <div class="max-w-3xl mx-auto bg-gray-800 rounded-xl p-4 shadow-xl" id="chartBox">
         <h2 class="text-xl font-semibold text-center mb-4 text-blue-300">Job State Distribution</h2>
-        <canvas id="chart" height="120"></canvas>
+        <canvas id="chart" width="400" height="200" style="max-width:500px;margin:auto;"></canvas>
       </div>
 
       <div id="summary" class="max-w-4xl mx-auto mt-10"></div>
@@ -40,27 +41,24 @@ app.get("/", (req, res) => {
 
     <script>
       let darkMode = true;
+
       const colors = {
-        light: { bg: 'bg-white text-gray-900', chartBg: '#f3f4f6', chartText: '#111' },
-        dark:  { bg: 'bg-gray-900 text-gray-100', chartBg: '#1f2937', chartText: '#fff' }
+        light: { bg: 'bg-white text-gray-900', chartText: '#111' },
+        dark:  { bg: 'bg-gray-900 text-gray-100', chartText: '#fff' }
       };
 
       function toggleTheme() {
         darkMode = !darkMode;
         const theme = darkMode ? colors.dark : colors.light;
-
-        const body = document.getElementById('body');
-        const chartBox = document.getElementById('chartBox');
-        const btn = document.getElementById('themeToggle');
-
-        body.className = theme.bg + ' min-h-screen font-sans transition-all duration-500';
-        chartBox.className = (darkMode ? 'bg-gray-800' : 'bg-gray-100') + ' rounded-xl p-4 shadow-xl transition-all duration-500';
-        btn.textContent = darkMode ? '🌙 Dark Mode' : '☀️ Light Mode';
+        document.getElementById('body').className = theme.bg + ' min-h-screen font-sans';
+        document.getElementById('themeToggle').textContent = darkMode ? '🌙 Dark Mode' : '☀️ Light Mode';
         updateChartTheme();
       }
 
       document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+        fetchSummary();
+        setInterval(fetchSummary, 5000);
       });
 
       async function fetchSummary() {
@@ -70,18 +68,20 @@ app.get("/", (req, res) => {
         const total = data.reduce((acc, s) => acc + s.count, 0);
         const colorMap = { completed: 'green', pending: 'yellow', dead: 'red', failed: 'orange', processing: 'blue' };
 
+        // Cards
         document.getElementById('cards').innerHTML = data.map(s => \`
-          <div class="bg-gray-800 p-4 rounded-lg shadow-md hover:scale-105 transform transition duration-300">
+          <div class="bg-gray-800 p-4 rounded-lg shadow-md hover:scale-105 transition transform duration-300">
             <h3 class="text-lg font-semibold text-\${colorMap[s.state] || 'gray'}-400">\${s.state.toUpperCase()}</h3>
             <p class="text-3xl font-bold mt-2">\${s.count}</p>
           </div>
         \`).join('') + \`
-          <div class="bg-gray-800 p-4 rounded-lg shadow-md hover:scale-105 transform transition duration-300">
+          <div class="bg-gray-800 p-4 rounded-lg shadow-md hover:scale-105 transition transform duration-300">
             <h3 class="text-lg font-semibold text-gray-300">TOTAL</h3>
             <p class="text-3xl font-bold mt-2">\${total}</p>
           </div>
         \`;
 
+        // Donut Chart
         const ctx = document.getElementById('chart').getContext('2d');
         if (window.myChart) window.myChart.destroy();
         window.myChart = new Chart(ctx, {
@@ -90,10 +90,12 @@ app.get("/", (req, res) => {
             labels: data.map(d => d.state),
             datasets: [{
               data: data.map(d => d.count),
-              backgroundColor: ['#10B981','#3B82F6','#EF4444','#F59E0B','#8B5CF6']
+              backgroundColor: ['#10B981','#3B82F6','#EF4444','#F59E0B','#8B5CF6'],
+              cutout: '65%'
             }]
           },
           options: {
+            aspectRatio: 1.5,
             plugins: {
               legend: {
                 position: 'bottom',
@@ -103,6 +105,7 @@ app.get("/", (req, res) => {
           }
         });
 
+        // Summary Table
         document.getElementById('summary').innerHTML = \`
           <h2 class="text-2xl text-blue-400 font-semibold text-center mb-2">Job Summary</h2>
           <table class="min-w-full bg-gray-800 rounded-lg overflow-hidden">
@@ -122,22 +125,18 @@ app.get("/", (req, res) => {
           window.myChart.update();
         }
       }
-
-      fetchSummary();
-      setInterval(fetchSummary, 5000);
     </script>
   </body>
   </html>
   `);
 });
 
-// API for summary
+// API Endpoints
 app.get("/api/summary", (req, res) => {
   const summary = db.prepare("SELECT state, COUNT(*) AS count FROM jobs GROUP BY state").all();
   res.json(summary);
 });
 
-// All jobs route
 app.get("/jobs", (req, res) => {
   const rows = db.prepare("SELECT * FROM jobs ORDER BY updated_at DESC").all();
   res.send(`
@@ -152,10 +151,10 @@ app.get("/jobs", (req, res) => {
   `);
 });
 
-// DLQ route
 app.get("/dlq", (req, res) => {
   const rows = db.prepare("SELECT * FROM dlq ORDER BY failed_at DESC").all();
-  if (!rows.length) return res.send("<h1 style='text-align:center;font-family:sans-serif;color:gray;'>💀 DLQ Empty</h1><p style='text-align:center;'><a href='/'>Back</a></p>");
+  if (!rows.length)
+    return res.send("<h1 style='text-align:center;font-family:sans-serif;color:gray;'>💀 DLQ Empty</h1><p style='text-align:center;'><a href='/'>Back</a></p>");
   res.send(`
   <html><body style="font-family:sans-serif;background:#111;color:white;padding:30px;">
     <h1>💀 Dead Letter Queue</h1>
@@ -169,4 +168,4 @@ app.get("/dlq", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(` Dashboard running at http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Dashboard running at http://localhost:${PORT}`));

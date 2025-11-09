@@ -1,32 +1,40 @@
-import { v4 as v4uuid } from 'uuid';
-import  db  from './db.js';
-import { insertJob, listJobs, summary, listDLQ, retryDLQ, getConfig, setConfig } from './repo.js';
-import { nowISO, parseJSON } from './util.js';
+import { v4 as v4uuid } from "uuid";
+import db from "./db.js";
+import {
+  insertJob,
+  listJobs,
+  summary,
+  listDLQ,
+  retryDLQ,
+  getConfig,
+  setConfig,
+} from "./repo.js";
+import { nowISO, parseJSON } from "./util.js";
 
-/**
- * Enqueue a new job into the queue.
- * Handles command validation, default config loading,
- * and optional scheduling via run_at field.
- */
+/* ---------------------------------------------------------
+   ENQUEUE: Add a new job to queue
+--------------------------------------------------------- */
 export const enqueueJob = (jobJsonString) => {
   const parsed = parseJSON(jobJsonString);
-  if (!parsed) throw new Error('Invalid JSON payload.');
+  if (!parsed) throw new Error("Invalid JSON payload.");
 
-  if (!parsed.command || String(parsed.command).trim() === '') {
+  if (!parsed.command || String(parsed.command).trim() === "") {
     throw new Error('Missing required "command" field in job JSON.');
   }
 
   const id = parsed.id || v4uuid();
-  const maxRetries = parsed.max_retries ?? Number(getConfig('max_retries') || 3);
-  const backoffBase = parsed.backoff_base ?? Number(getConfig('backoff_base') || 2);
+
+  // ✅ Safe config read
+  const maxRetries = parsed.max_retries ?? Number(getConfig("max_retries") || 3);
+  const backoffBase = parsed.backoff_base ?? Number(getConfig("backoff_base") || 2);
   const priority = parsed.priority ?? 0;
   const run_at = parsed.run_at || null;
   const created_at = nowISO();
 
   insertJob({
     id,
-    command: String(parsed.command || '').trim(),
-    state: 'pending',
+    command: String(parsed.command || "").trim(),
+    state: "pending",
     attempts: 0,
     max_retries: maxRetries,
     backoff_base: backoffBase,
@@ -40,44 +48,68 @@ export const enqueueJob = (jobJsonString) => {
   return id;
 };
 
-/**
- * List jobs filtered by state
- */
+/* ---------------------------------------------------------
+   JOB LISTING
+--------------------------------------------------------- */
 export const listJobsByState = (state) => listJobs({ state });
 
-/**
- * List only jobs that are ready to run now
- * (pending and run_at <= CURRENT_TIMESTAMP)
- */
-export const listReadyJobs = () => {
-  return listJobs({
+export const listReadyJobs = () =>
+  listJobs({
     where: "state='pending' AND (run_at IS NULL OR run_at <= CURRENT_TIMESTAMP)",
   });
-};
 
-/**
- * Get job summary
- */
+/* ---------------------------------------------------------
+   SUMMARY
+--------------------------------------------------------- */
 export const queueSummary = () => summary();
 
-/**
- * DLQ utilities
- */
+/* ---------------------------------------------------------
+   DEAD LETTER QUEUE (DLQ)
+--------------------------------------------------------- */
 export const dlqList = () => listDLQ();
+
 export const dlqRetry = (jobId) => retryDLQ(jobId);
 
-/**
- * Config utilities
- */
-export const configGet = (key) => getConfig(key);
-export const configSet = (key, value) => setConfig(key, value);
+/* ---------------------------------------------------------
+   CONFIG UTILITIES
+--------------------------------------------------------- */
+const keyMap = {
+  "max-retries": "max_retries",
+  "backoff-base": "backoff_base",
+  "job-timeout-ms": "job_timeout_ms",
+};
 
-/**
- * Developer helper: Clear all jobs and logs (for testing)
- */
+/* ---------------------------------------------------------
+   CONFIG UTILITIES
+--------------------------------------------------------- */
+export const configGet = (key) => {
+  const map = {
+    "max-retries": "max_retries",
+    "backoff-base": "backoff_base",
+    "job-timeout-ms": "job_timeout_ms",
+  };
+  const normalizedKey = map[key] || key;
+  // ✅ just return the value — no console.log here
+  return getConfig(normalizedKey);
+};
+
+export const configSet = (key, value) => {
+  const map = {
+    "max-retries": "max_retries",
+    "backoff-base": "backoff_base",
+    "job-timeout-ms": "job_timeout_ms",
+  };
+  const normalizedKey = map[key] || key;
+  // ✅ just update silently — CLI will handle printing
+  return setConfig(normalizedKey, value);
+};
+
+
+/* ---------------------------------------------------------
+   DEVELOPER UTILITY (CLEANUP)
+--------------------------------------------------------- */
 export const clearAllJobs = () => {
-  db.prepare('DELETE FROM jobs').run();
-  db.prepare('DELETE FROM logs').run();
-  db.prepare('DELETE FROM dlq').run();
-  console.log('✅ All jobs, logs, and DLQ entries cleared successfully.');
+  db.prepare("DELETE FROM jobs").run();
+  db.prepare("DELETE FROM logs").run();
+  db.prepare("DELETE FROM dlq").run();
 };
