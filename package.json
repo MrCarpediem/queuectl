@@ -6,6 +6,7 @@
     "queuectl": "./src/cli.js"
   },
   "scripts": {
+    "web": "node ./src/web.js",
     "dev": "node ./src/cli.js",
     "migrate": "node ./src/db.js migrate",
     "demo": "bash ./scripts/demo.sh"
@@ -13,6 +14,7 @@
   "dependencies": {
     "better-sqlite3": "^9.4.0",
     "commander": "^12.1.0",
+    "express": "^5.1.0",
     "uuid": "^11.0.3"
   }
 }

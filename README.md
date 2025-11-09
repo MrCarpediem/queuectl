@@ -17,6 +17,7 @@
 - **Retry & Backoff:** Automatic retries with exponential backoff and configurable limits.
 - **Dead Letter Queue (DLQ):** Failed jobs are moved to DLQ for inspection and manual retry.
 - **Job Listing & Status:** List jobs by state, view ready-to-run jobs, and get queue summaries.
+- **Web Dashboard:** Modern UI with real-time job monitoring, charts, and dark/light mode.
 - **Configurable:** Set max retries, backoff base, and job timeout via CLI.
 - **Developer Tools:** Clear all jobs/logs for testing and development.
 
@@ -25,7 +26,6 @@
 
 
 ## Setup Instructions
-
 
 1. **Install Dependencies:**
 	```bash
@@ -38,7 +38,13 @@
 	node src/db.js migrate
 	```
 
-3. **Run Demo Script (Optional):**
+3. **Start Web Dashboard:**
+	```bash
+	node src/web.js
+	```
+	Visit http://localhost:3000 to access the monitoring interface.
+
+4. **Run Demo Script (Optional):**
 	```bash
 	bash scripts/demo.sh
 	```
@@ -110,8 +116,27 @@ queuectl/
 	 ├── queue.js       # Queue logic: enqueue, list, summary, DLQ, config
 	 ├── repo.js        # DB repository: jobs, DLQ, logs, config
 	 ├── util.js        # Utilities: time, UUID, backoff, JSON
+	 ├── web.js         # Web Dashboard with real-time monitoring
 	 └── worker.js      # Worker process management & job execution
 ```
+
+---
+
+## Web Dashboard
+
+The built-in web dashboard provides real-time monitoring and visualization of your job queue:
+
+- **Real-time Updates:** Auto-refreshing job statistics and charts
+- **Dark/Light Mode:** Toggle between themes for comfortable viewing
+- **Job Distribution:** Visual breakdown of job states via doughnut chart
+- **Quick Access:** Direct links to view all jobs and DLQ entries
+- **Responsive Design:** Built with Tailwind CSS for a modern, mobile-friendly interface
+
+To access the dashboard:
+```bash
+node src/web.js
+```
+Then visit http://localhost:3000 in your browser.
 
 ---
 
@@ -121,7 +146,7 @@ queuectl/
 2. **Workers** pick up pending jobs, execute them, and log results.
 3. **Retries** are handled with exponential backoff up to a configurable limit.
 4. **Failed jobs** exceeding retries are moved to the DLQ for inspection or manual retry.
-5. **Status and job lists** are available for monitoring and debugging.
+5. **Status and job lists** are available for monitoring and debugging via CLI and web dashboard.
 
 ---
 
@@ -135,5 +160,3 @@ queuectl/
 ---
 
 ## License
-
-MIT
